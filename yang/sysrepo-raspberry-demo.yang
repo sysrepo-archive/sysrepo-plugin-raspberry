@@ -1,0 +1,33 @@
+module sysrepo-raspberry-demo {
+
+  yang-version 1;
+
+  namespace "urn:ietf:params:xml:ns:yang:sysrepo-raspberry-demo";
+
+  prefix srrpidemo;
+
+  organization "sysrepo.org";
+
+  contact "sysrepo-devel@sysrepo.org";
+
+  description "Experimental Raspberry Pi management YANG model, used for demo purposes.";
+
+  revision 2016-07-12 {
+    description "Inital revision";
+    reference "sysrepo.org";
+  }
+
+  leaf relay-switch {
+    type boolean;
+    default "false";
+    description "Controls whether the relay switch connected to the Raspberry is ON (true) or OFF (false).";
+  }
+
+  leaf temperature {
+    type decimal64 {
+      fraction-digits 3;
+    }
+    config false;
+    description "Contains the temperature obtained from the temperature sensor connected to the Raspberry.";
+  }
+}
