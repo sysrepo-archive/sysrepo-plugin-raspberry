@@ -25,9 +25,12 @@
 #include "sysrepo.h"
 
 #define GPIO_PIN "18"
-#define GPIO_EXPORT    "/sys/class/gpio/export"
-#define GPIO_DIRECTION "/sys/class/gpio/gpio" GPIO_PIN "/direction"
-#define GPIO_VALUE     "/sys/class/gpio/gpio" GPIO_PIN "/value"
+#define TERM_SENSOR_NAME "28-031600cf22ff"
+
+#define GPIO_EXPORT       "/sys/class/gpio/export"
+#define GPIO_DIRECTION    "/sys/class/gpio/gpio" GPIO_PIN "/direction"
+#define GPIO_VALUE        "/sys/class/gpio/gpio" GPIO_PIN "/value"
+#define TERM_SENSOR_VALUE "/sys/bus/w1/devices/" TERM_SENSOR_NAME "/w1_slave"
 
 /* logging macro for unformatted messages */
 #define log_msg(MSG) \
@@ -69,13 +72,38 @@ static void
 gpio_set_value(bool value)
 {
     if (true == value) {
-        file_write(GPIO_VALUE, "1");
-    } else {
         file_write(GPIO_VALUE, "0");
+    } else {
+        file_write(GPIO_VALUE, "1");
     }
 }
 
-/* retrieves current configuration */
+static double
+temperature_sensor_read(const char *filename)
+{
+    char str[1024], *pch = NULL;
+    int int_value = 0;
+    FILE *fp = NULL;
+
+    fp = fopen(filename , "r");
+    if (NULL == fp) {
+        log_fmt("Error opening file: %s", filename);
+        return 0;
+    }
+
+    while (EOF != fscanf(fp, "%s", str)) {
+        pch = strstr (str, "t=");
+        if (NULL != pch) {
+            sscanf(pch, "t=%d", &int_value);
+            break;
+        }
+    }
+
+    fclose(fp);
+
+    return (int_value / 1000);
+}
+
 static void
 retrieve_current_config(sr_session_ctx_t *session)
 {
@@ -83,7 +111,7 @@ retrieve_current_config(sr_session_ctx_t *session)
     bool on = false;
     int rc = SR_ERR_OK;
 
-    rc = sr_get_item(session, "/sysrepo-raspberry-demo:relay-switch", &value);
+    rc = sr_get_item(session, "/sysrepo-raspberry-demo:peripherals/relay-switch", &value);
     if (SR_ERR_NOT_FOUND == rc) {
         on = false;
     } else if (SR_ERR_OK != rc) {
@@ -98,7 +126,8 @@ retrieve_current_config(sr_session_ctx_t *session)
     }
 
     log_fmt("relay-switch=%s", on ? "ON" : "OFF");
-    gpio_set_value(on);
+
+    gpio_set_value(!on); /* 0 activates the relay, 1 deactivates */
 }
 
 static int
@@ -112,7 +141,7 @@ module_change_cb(sr_session_ctx_t *session, const char *module_name, sr_notif_ev
 }
 
 static int
-dp_get_items_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, void *private_ctx)
+temperature_sensor_val_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, void *private_ctx)
 {
     sr_val_t *value = NULL;
 
@@ -123,7 +152,7 @@ dp_get_items_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, void *
 
     value->xpath = strdup(xpath);
     value->type = SR_DECIMAL64_T;
-    value->data.decimal64_val = 28.123;
+    value->data.decimal64_val = temperature_sensor_read(TERM_SENSOR_VALUE);
 
     *values = value;
     *values_cnt = 1;
@@ -144,7 +173,7 @@ sr_plugin_init_cb(sr_session_ctx_t *session, void **private_ctx)
         goto error;
     }
 
-    rc = sr_dp_get_items_subscribe(session, "/sysrepo-raspberry-demo:temperature", dp_get_items_cb, NULL,
+    rc = sr_dp_get_items_subscribe(session, "/sysrepo-raspberry-demo:peripherals/temperature-sensor", temperature_sensor_val_cb, NULL,
             SR_SUBSCR_CTX_REUSE, &subscription);
     if (SR_ERR_OK != rc) {
         goto error;
