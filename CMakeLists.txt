@@ -30,7 +30,7 @@ endif()
 set(PLUGINS_DIR "${CMAKE_INSTALL_PREFIX}/${LIB_INSTALL_DIR}/sysrepo/plugins/" CACHE PATH "Sysrepo plugins directory.")
 
 # raspberry-demo plugin
-add_library(raspberry-demo SHARED raspberry-demo.c)
+add_library(raspberry-demo SHARED src/raspberry-demo.c)
 target_link_libraries(raspberry-demo sysrepo)
 
 install(TARGETS raspberry-demo DESTINATION ${PLUGINS_DIR})

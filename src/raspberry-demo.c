@@ -101,7 +101,7 @@ temperature_sensor_read(const char *filename)
 
     fclose(fp);
 
-    return (int_value / 1000);
+    return (int_value / 1000.0);
 }
 
 static void
@@ -127,7 +127,7 @@ retrieve_current_config(sr_session_ctx_t *session)
 
     log_fmt("relay-switch=%s", on ? "ON" : "OFF");
 
-    gpio_set_value(!on); /* 0 activates the relay, 1 deactivates */
+    gpio_set_value(on);
 }
 
 static int
